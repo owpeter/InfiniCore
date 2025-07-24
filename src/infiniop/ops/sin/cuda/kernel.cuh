@@ -18,7 +18,7 @@ public:
         } else if constexpr (std::is_same_v<T, float>) {
             return sinf(x);
         } else {
-            return sin(x);
+            return ::sin(x);
         }
     }
 } SinOp;

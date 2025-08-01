@@ -515,3 +515,16 @@ def sin_(lib):
     ]
     lib.infiniopDestroySinDescriptor.restype = c_int32
     lib.infiniopDestroySinDescriptor.argtypes = [infiniopOperatorDescriptor_t]
+
+def rms_norm_gemm(lib):
+    lib.infiniopCreateRMSNormGemmDescriptor.argtypes = [c_void_p, POINTER(c_void_p), c_void_p, c_void_p, c_void_p, c_void_p, c_float]
+    lib.infiniopCreateRMSNormGemmDescriptor.restype = c_int32
+
+    lib.infiniopDestroyRMSNormGemmDescriptor.argtypes = [c_void_p]
+    lib.infiniopDestroyRMSNormGemmDescriptor.restype = c_int32
+
+    lib.infiniopGetRMSNormGemmWorkspaceSize.argtypes = [c_void_p, POINTER(c_size_t)]
+    lib.infiniopGetRMSNormGemmWorkspaceSize.restype = c_int32
+
+    lib.infiniopRMSNormGemm.argtypes = [c_void_p, c_void_p, c_size_t, c_void_p, c_void_p, c_void_p, c_void_p, c_void_p]
+    lib.infiniopRMSNormGemm.restype = c_int32

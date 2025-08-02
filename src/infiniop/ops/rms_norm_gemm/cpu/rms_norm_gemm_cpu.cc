@@ -1,6 +1,7 @@
 #include "rms_norm_gemm_cpu.h"
 #include "../../../devices/cpu/common_cpu.h"
 #include "../../../reduce/cpu/reduce.h"
+#include "../../../../utils/custom_types.h"
 
 namespace op::rms_norm_gemm::cpu {
 
@@ -22,26 +23,44 @@ infiniStatus_t Descriptor::create(
 
 template <typename T>
 infiniStatus_t rms_norm_gemm(const RMSNormGemmInfo *info, T *c, const T *a, const T *b, const T *w) {
+    // Use the stride information from the info structures
+    size_t m = info->rms_norm_info.shape[0];  // batch dimension
+    size_t k = info->rms_norm_info.shape[1];  // feature dimension
+    size_t n = info->gemm_info.n;             // output dimension
+
 #pragma omp parallel for
-    for (ptrdiff_t i = 0; i < ptrdiff_t(info->rms_norm_info.shape[0]); i++) {
-        const T *a_row = a + i * info->rms_norm_info.x_strides[0];
-        
-        // RMSNorm
-        T ss = op::common_cpu::reduce_op::sumSquared(a_row, info->rms_norm_info.shape[1], info->rms_norm_info.x_strides[1]);
-        T rms = (T)1 / std::sqrt(ss / (T)(info->rms_norm_info.shape[1]) + (T)(info->rms_norm_info.epsilon));
-
-        std::vector<T> normed_a(info->rms_norm_info.shape[1]);
-        for (size_t j = 0; j < info->rms_norm_info.shape[1]; j++) {
-            normed_a[j] = a_row[j * info->rms_norm_info.x_strides[1]] * w[j] * rms;
+    for (ptrdiff_t i = 0; i < ptrdiff_t(m); i++) {
+        // RMSNorm on row i using proper strides
+        float ss = 0.f;
+        for (size_t j = 0; j < k; ++j) {
+            size_t a_idx = i * info->rms_norm_info.x_strides[0] + j * info->rms_norm_info.x_strides[1];
+            float val = utils::cast<float>(a[a_idx]);
+            ss += val * val;
         }
+        float rms = 1.f / std::sqrt(ss / (float)k + info->rms_norm_info.epsilon);
 
-        // Gemm
-        for (size_t j = 0; j < info->gemm_info.n; ++j) {
-            T sum = 0;
-            for (size_t k = 0; k < info->gemm_info.k; ++k) {
-                sum += normed_a[k] * b[k * info->gemm_info.b_matrix.row_stride + j * info->gemm_info.b_matrix.col_stride];
+        // Apply weights and compute GEMM using proper strides
+        for (size_t j = 0; j < n; ++j) {
+            float sum = 0.f;
+            for (size_t l = 0; l < k; ++l) {
+                // Get a element using proper stride
+                size_t a_idx = i * info->rms_norm_info.x_strides[0] + l * info->rms_norm_info.x_strides[1];
+                float a_val = utils::cast<float>(a[a_idx]);
+                
+                // Get weight element (weights are contiguous)
+                float w_val = utils::cast<float>(w[l]);
+                
+                // Get b element using GEMM info strides
+                size_t b_idx = l * info->gemm_info.b_matrix.row_stride + j * info->gemm_info.b_matrix.col_stride;
+                float b_val = utils::cast<float>(b[b_idx]);
+                
+                float normed_val = a_val * w_val * rms;
+                sum += normed_val * b_val;
             }
-            c[i * info->gemm_info.c_matrix.stride + j] = sum;
+            
+            // Store result using proper stride
+            size_t c_idx = i * info->gemm_info.c_matrix.row_stride + j * info->gemm_info.c_matrix.col_stride;
+            c[c_idx] = utils::cast<T>(sum);
         }
     }
     return INFINI_STATUS_SUCCESS;
@@ -53,6 +72,10 @@ infiniStatus_t Descriptor::calculate(
     void *stream) const {
     if (_info.rms_norm_info.atype == INFINI_DTYPE_F32) {
         CHECK_STATUS(rms_norm_gemm(&_info, (float *)c, (const float *)a, (const float *)b, (const float *)w));
+    } else if (_info.rms_norm_info.atype == INFINI_DTYPE_F16) {
+        CHECK_STATUS(rms_norm_gemm(&_info, (fp16_t *)c, (const fp16_t *)a, (const fp16_t *)b, (const fp16_t *)w));
+    } else if (_info.rms_norm_info.atype == INFINI_DTYPE_BF16) {
+        CHECK_STATUS(rms_norm_gemm(&_info, (bf16_t *)c, (const bf16_t *)a, (const bf16_t *)b, (const bf16_t *)w));
     } else {
         return INFINI_STATUS_BAD_TENSOR_DTYPE;
     }

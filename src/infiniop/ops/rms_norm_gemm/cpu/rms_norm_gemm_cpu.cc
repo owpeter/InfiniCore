@@ -39,6 +39,8 @@ infiniStatus_t rms_norm_gemm(const RMSNormGemmInfo *info, T *c, const T *a, cons
         }
         float rms = 1.f / std::sqrt(ss / (float)k + info->rms_norm_info.epsilon);
 
+        std::cout << "[debug in cpu.cc] rms: " << rms << std::endl;
+
         // Apply weights and compute GEMM using proper strides
         for (size_t j = 0; j < n; ++j) {
             float sum = 0.f;

@@ -516,15 +516,33 @@ def sin_(lib):
     lib.infiniopDestroySinDescriptor.restype = c_int32
     lib.infiniopDestroySinDescriptor.argtypes = [infiniopOperatorDescriptor_t]
 
+@OpRegister.operator
 def rms_norm_gemm(lib):
-    lib.infiniopCreateRMSNormGemmDescriptor.argtypes = [c_void_p, POINTER(c_void_p), c_void_p, c_void_p, c_void_p, c_void_p, c_float]
+    lib.infiniopCreateRMSNormGemmDescriptor.argtypes = [
+        infiniopHandle_t,
+        POINTER(infiniopOperatorDescriptor_t),
+        infiniopTensorDescriptor_t,
+        infiniopTensorDescriptor_t,
+        infiniopTensorDescriptor_t,
+        infiniopTensorDescriptor_t,
+        c_float,
+    ]
     lib.infiniopCreateRMSNormGemmDescriptor.restype = c_int32
 
-    lib.infiniopDestroyRMSNormGemmDescriptor.argtypes = [c_void_p]
+    lib.infiniopDestroyRMSNormGemmDescriptor.argtypes = [infiniopOperatorDescriptor_t]
     lib.infiniopDestroyRMSNormGemmDescriptor.restype = c_int32
 
-    lib.infiniopGetRMSNormGemmWorkspaceSize.argtypes = [c_void_p, POINTER(c_size_t)]
+    lib.infiniopGetRMSNormGemmWorkspaceSize.argtypes = [infiniopOperatorDescriptor_t, POINTER(c_size_t)]
     lib.infiniopGetRMSNormGemmWorkspaceSize.restype = c_int32
 
-    lib.infiniopRMSNormGemm.argtypes = [c_void_p, c_void_p, c_size_t, c_void_p, c_void_p, c_void_p, c_void_p, c_void_p]
+    lib.infiniopRMSNormGemm.argtypes = [
+        infiniopOperatorDescriptor_t,
+        c_void_p,
+        c_size_t,
+        c_void_p,
+        c_void_p,
+        c_void_p,
+        c_void_p,
+        c_void_p,
+    ]
     lib.infiniopRMSNormGemm.restype = c_int32

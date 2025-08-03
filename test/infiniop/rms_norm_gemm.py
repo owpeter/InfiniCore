@@ -23,9 +23,9 @@ from libinfiniop import (
 # ==============================================================================
 # These are not meant to be imported from other modules
 
-# Test cases are defined as (c_shape, a_shape, b_shape, w_shape)
-# c = rms_norm(a, w) @ b
-# a_shape = (m, k), w_shape = (k,), b_shape = (k, n), c_shape = (m, n)
+# Test cases are defined as (c_shape, a_shape, b_shape, w_shape, bias_shape)
+# c = rms_norm(a, w) @ b + bias
+# a_shape = (m, k), w_shape = (k,), b_shape = (k, n), bias_shape = (n,), c_shape = (m, n)
 _TEST_CASES_ = [
     # m, k,  n
     (1,  4,   8),
@@ -40,7 +40,7 @@ _TENSOR_DTYPES = [InfiniDtype.F16, InfiniDtype.F32]
 
 # Form the test cases by converting (m, k, n) tuples into shape tuples
 _TEST_CASES = [
-    ((m, n), (m, k), (k, n), (k,)) for m, k, n in _TEST_CASES_
+    ((m, n), (m, k), (k, n), (k,), (n,)) for m, k, n in _TEST_CASES_
 ]
 
 # Tolerance map for different data types
@@ -55,7 +55,7 @@ PROFILE = False
 NUM_PRERUN = 10
 NUM_ITERATIONS = 1000
 
-def rms_norm_gemm_ref(c_ref, a, w, b, eps):
+def rms_norm_gemm_ref(c_ref, a, w, b, bias, eps):
     """
     Reference implementation of RMSNorm + GEMM using PyTorch.
     """
@@ -68,6 +68,9 @@ def rms_norm_gemm_ref(c_ref, a, w, b, eps):
     normed_a = a * rsqrt_val * w.to(a.dtype)
     # 2. Gemm
     torch.matmul(normed_a, b, out=c_ref)
+    # 3. Add bias if provided
+    if bias is not None:
+        c_ref.add_(bias.to(c_ref.dtype))
 
 
 def test(

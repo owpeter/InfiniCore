@@ -36,6 +36,7 @@
             infiniopTensorDescriptor_t a_desc,                                                                            \
             infiniopTensorDescriptor_t b_desc,                                                                            \
             infiniopTensorDescriptor_t w_desc,                                                                            \
+            infiniopTensorDescriptor_t bias_desc,                                                                         \
             float epsilon);                                                                                               \
                                                                                                                           \
         infiniStatus_t calculate(                                                                                         \
@@ -44,6 +45,7 @@
             const void *a,                                                                                                \
             const void *b,                                                                                                \
             const void *w,                                                                                                \
+            const void *bias,                                                                                             \
             void *stream) const;                                                                                          \
     };                                                                                                                    \
     }

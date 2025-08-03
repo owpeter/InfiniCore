@@ -16,6 +16,7 @@ __C infiniStatus_t infiniopCreateRMSNormGemmDescriptor(
     infiniopTensorDescriptor_t a_desc,
     infiniopTensorDescriptor_t b_desc,
     infiniopTensorDescriptor_t w_desc,
+    infiniopTensorDescriptor_t bias_desc,
     float epsilon) {
 
 #define CREATE(CASE, NAMESPACE)                                                        \
@@ -27,6 +28,7 @@ __C infiniStatus_t infiniopCreateRMSNormGemmDescriptor(
             a_desc,                                                                    \
             b_desc,                                                                    \
             w_desc,                                                                    \
+            bias_desc,                                                                 \
             epsilon);
 
     switch (handle->device) {
@@ -72,12 +74,12 @@ __C infiniStatus_t infiniopGetRMSNormGemmWorkspaceSize(infiniopRMSNormGemmDescri
 }
 
 __C infiniStatus_t infiniopRMSNormGemm(infiniopRMSNormGemmDescriptor_t desc, void *workspace, size_t workspace_size,
-                                   void *c, const void *a, const void *b, const void *w, void *stream) {
+                                   void *c, const void *a, const void *b, const void *w, const void *bias, void *stream) {
 
 #define CALCULATE(CASE, NAMESPACE)                                                           \
     case CASE:                                                                               \
         return reinterpret_cast<op::rms_norm_gemm::NAMESPACE::Descriptor *>(desc)->calculate( \
-            workspace, workspace_size, c, a, b, w, stream)
+            workspace, workspace_size, c, a, b, w, bias, stream)
 
     switch (desc->device_type) {
 #ifdef ENABLE_CPU_API

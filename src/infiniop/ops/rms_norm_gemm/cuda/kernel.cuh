@@ -10,12 +10,14 @@ __device__ void rms_norm_gemm_block(
     const Tdata *__restrict__ b, 
     const Tdata *__restrict__ a, 
     const Tweight *__restrict__ w,
+    const Tdata *__restrict__ bias,
     const size_t m, const size_t n, const size_t k,
     float epsilon,
     const ptrdiff_t stride_a,   
     const ptrdiff_t ldc,
     const ptrdiff_t ldb_row, 
-    const ptrdiff_t ldb_col)
+    const ptrdiff_t ldb_col,
+    bool has_bias)
 {
     extern __shared__ char rms_gemm_smem_bytes[];
     
@@ -49,6 +51,10 @@ __device__ void rms_norm_gemm_block(
         Tcompute sum = 0;
         for (int l = 0; l < k; ++l) {
             sum += static_cast<Tcompute>(normed_a[l]) * static_cast<Tcompute>(b[l * ldb_row + j * ldb_col]);
+        }
+        // 添加偏置项
+        if (has_bias) {
+            sum += static_cast<Tcompute>(bias[j]);
         }
         c[row * ldc + j] = static_cast<Tdata>(sum);
     }

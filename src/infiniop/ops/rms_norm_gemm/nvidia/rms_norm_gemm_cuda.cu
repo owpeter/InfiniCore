@@ -9,15 +9,17 @@ INFINIOP_CUDA_KERNEL rms_norm_gemm_kernel(
     const Tdata *__restrict__ b, 
     const Tdata *__restrict__ a, 
     const Tweight *__restrict__ w,
+    const Tdata *__restrict__ bias,
     const size_t m, const size_t n, const size_t k,
     float epsilon,
     const ptrdiff_t stride_a,   
     const ptrdiff_t ldc,
     const ptrdiff_t ldb_row, 
-    const ptrdiff_t ldb_col
+    const ptrdiff_t ldb_col,
+    bool has_bias
 ) {
     rms_norm_gemm_block<Tdata, Tweight, Tcompute, BLOCK_SIZE> (
-        c,b,a,w,m,n,k,epsilon,stride_a,ldc,ldb_row,ldb_col
+        c,b,a,w,bias,m,n,k,epsilon,stride_a,ldc,ldb_row,ldb_col,has_bias
     );
 }
 
@@ -38,8 +40,9 @@ infiniStatus_t Descriptor::create(
     infiniopTensorDescriptor_t a_desc,
     infiniopTensorDescriptor_t b_desc,
     infiniopTensorDescriptor_t w_desc,
+    infiniopTensorDescriptor_t bias_desc,
     float epsilon) {
-    auto result = RMSNormGemmInfo::create(c_desc, a_desc, b_desc, w_desc, epsilon);
+    auto result = RMSNormGemmInfo::create(c_desc, a_desc, b_desc, w_desc, bias_desc, epsilon);
     CHECK_RESULT(result);
     *desc_ptr = new Descriptor(
         new Opaque{reinterpret_cast<device::nvidia::Handle *>(handle)->internal()},
@@ -53,6 +56,7 @@ infiniStatus_t launchKernel(
         const void *b,          
         const void *a,
         const void *w,
+        const void *bias,
         const size_t m, const size_t n, const size_t k,
         float epsilon,
         const ptrdiff_t stride_a,   
@@ -63,7 +67,8 @@ infiniStatus_t launchKernel(
         infiniDtype_t wtype,
         dim3 blocks,
         dim3 threads,
-        void *stream
+        void *stream,
+        bool has_bias
 ) {
 #define LAUNCH_KERNEL(Tdata, Tweight, Tcompute, BLOCK_SIZE)             \
     rms_norm_gemm_kernel<Tdata, Tweight, Tcompute, BLOCK_SIZE><<<blocks, threads, k * sizeof(Tdata), (cudaStream_t)stream>>>(          \
@@ -71,12 +76,14 @@ infiniStatus_t launchKernel(
         reinterpret_cast<const Tdata *>(b),           \
         reinterpret_cast<const Tdata *>(a),           \
         reinterpret_cast<const Tweight *>(w),         \
+        reinterpret_cast<const Tdata *>(bias),        \
         m, n, k,                 \
         epsilon,                                            \
         stride_a,                                       \
         ldc,                                            \
         ldb_row,                                        \
-        ldb_col                                         \
+        ldb_col,                                        \
+        has_bias                                        \
     )                                                                   \
 
     if (atype == INFINI_DTYPE_F32 && wtype == INFINI_DTYPE_F32) {
@@ -95,7 +102,7 @@ infiniStatus_t launchKernel(
 
 infiniStatus_t Descriptor::calculate(
     void *workspace, size_t workspace_size,
-    void *c, const void *a, const void *b, const void *w,
+    void *c, const void *a, const void *b, const void *w, const void *bias,
     void *stream) const {
 
     auto &gemm_info = _info.gemm_info;
@@ -105,34 +112,34 @@ infiniStatus_t Descriptor::calculate(
                                          
     if (_opaque->internal->maxThreadsPerBlock() == CUDA_BLOCK_SIZE_1024) {
         dim3 threads(CUDA_BLOCK_SIZE_1024);
-        launchKernel<CUDA_BLOCK_SIZE_1024>(c, b, a, w,
+        launchKernel<CUDA_BLOCK_SIZE_1024>(c, b, a, w, bias,
         gemm_info.m, gemm_info.n, gemm_info.k,
         rms_norm_info.epsilon,
         rms_norm_info.x_strides[0], 
         gemm_info.c_matrix.row_stride,
         gemm_info.b_matrix.row_stride, gemm_info.b_matrix.col_stride,
         rms_norm_info.atype, rms_norm_info.wtype,
-        blocks, threads, stream);
+        blocks, threads, stream, _info.has_bias);
     } else if (_opaque->internal->maxThreadsPerBlock() == CUDA_BLOCK_SIZE_512) {
         dim3 threads(CUDA_BLOCK_SIZE_512);
-        launchKernel<CUDA_BLOCK_SIZE_512>(c, b, a, w,
+        launchKernel<CUDA_BLOCK_SIZE_512>(c, b, a, w, bias,
         gemm_info.m, gemm_info.n, gemm_info.k,
         rms_norm_info.epsilon,
         rms_norm_info.x_strides[0], 
         gemm_info.c_matrix.row_stride,
         gemm_info.b_matrix.row_stride, gemm_info.b_matrix.col_stride,
         rms_norm_info.atype, rms_norm_info.wtype,
-        blocks, threads, stream);
+        blocks, threads, stream, _info.has_bias);
     } else if (_opaque->internal->maxThreadsPerBlock() == CUDA_BLOCK_SIZE_4096) {
         dim3 threads(CUDA_BLOCK_SIZE_4096);
-        launchKernel<CUDA_BLOCK_SIZE_4096>(c, b, a, w,
+        launchKernel<CUDA_BLOCK_SIZE_4096>(c, b, a, w, bias,
         gemm_info.m, gemm_info.n, gemm_info.k,
         rms_norm_info.epsilon,
         rms_norm_info.x_strides[0], 
         gemm_info.c_matrix.row_stride,
         gemm_info.b_matrix.row_stride, gemm_info.b_matrix.col_stride,
         rms_norm_info.atype, rms_norm_info.wtype,
-        blocks, threads, stream);
+        blocks, threads, stream, _info.has_bias);
     } else {
         return INFINI_STATUS_DEVICE_ARCHITECTURE_NOT_SUPPORTED;
     }

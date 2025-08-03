@@ -12,6 +12,7 @@ __C __export infiniStatus_t infiniopCreateRMSNormGemmDescriptor(
     infiniopTensorDescriptor_t a_desc,
     infiniopTensorDescriptor_t b_desc,
     infiniopTensorDescriptor_t w_desc,
+    infiniopTensorDescriptor_t bias_desc,
     float epsilon);
 
 
@@ -25,6 +26,7 @@ __C __export infiniStatus_t infiniopRMSNormGemm(infiniopRMSNormGemmDescriptor_t 
                                    const void *a,
                                    const void *b,
                                    const void *w,
+                                   const void *bias,
                                    void *stream);
 
 __C __export infiniStatus_t infiniopDestroyRMSNormGemmDescriptor(infiniopRMSNormGemmDescriptor_t desc);

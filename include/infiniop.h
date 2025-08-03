@@ -13,6 +13,7 @@
 #include "infiniop/ops/rearrange.h"
 #include "infiniop/ops/relu.h"
 #include "infiniop/ops/rms_norm.h"
+#include "infiniop/ops/rms_norm_gemm.h"
 #include "infiniop/ops/rope.h"
 #include "infiniop/ops/sub.h"
 #include "infiniop/ops/swiglu.h"

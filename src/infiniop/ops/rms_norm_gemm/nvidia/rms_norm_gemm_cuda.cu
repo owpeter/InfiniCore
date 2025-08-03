@@ -71,7 +71,7 @@ infiniStatus_t launchKernel(
         bool has_bias
 ) {
 #define LAUNCH_KERNEL(Tdata, Tweight, Tcompute, BLOCK_SIZE)             \
-    rms_norm_gemm_kernel<Tdata, Tweight, Tcompute, BLOCK_SIZE><<<blocks, threads, k * sizeof(Tdata), (cudaStream_t)stream>>>(          \
+    rms_norm_gemm_kernel<Tdata, Tweight, Tcompute, BLOCK_SIZE><<<blocks, threads, k * sizeof(Tcompute), (cudaStream_t)stream>>>(          \
         reinterpret_cast<Tdata *>(c),                 \
         reinterpret_cast<const Tdata *>(b),           \
         reinterpret_cast<const Tdata *>(a),           \

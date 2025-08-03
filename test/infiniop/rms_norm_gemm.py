@@ -80,12 +80,13 @@ def test(
     a_shape,
     b_shape,
     w_shape,
+    bias_shape,
     dtype=InfiniDtype.F16,
     sync=None,
 ):
     print(
         f"Testing RMSNormGemm on {InfiniDeviceNames[device]} with a_shape:{a_shape} b_shape:{b_shape}"
-        f" w_shape:{w_shape} c_shape:{c_shape} dtype:{InfiniDtypeNames[dtype]}"
+        f" w_shape:{w_shape} bias_shape:{bias_shape} c_shape:{c_shape} dtype:{InfiniDtypeNames[dtype]}"
     )
 
     # Initialize tensors
@@ -93,11 +94,12 @@ def test(
     a = TestTensor(a_shape, None, dtype, device, scale=0.01)
     w = TestTensor(w_shape, None, InfiniDtype.F32, device) # RMSNorm weights are often F32
     b = TestTensor(b_shape, None, dtype, device, scale=0.01)
+    bias = TestTensor(bias_shape, None, dtype, device, scale=0.01)
     c = TestTensor(c_shape, None, dtype, device, mode="zeros")
 
     eps = 1e-5
     # Compute reference result using PyTorch
-    rms_norm_gemm_ref(c.torch_tensor(), a.torch_tensor(), w.torch_tensor(), b.torch_tensor(), eps)
+    rms_norm_gemm_ref(c.torch_tensor(), a.torch_tensor(), w.torch_tensor(), b.torch_tensor(), bias.torch_tensor(), eps)
 
     if sync is not None:
         sync()
@@ -112,12 +114,13 @@ def test(
             a.descriptor,
             b.descriptor,
             w.descriptor,
+            bias.descriptor,
             c_float(eps),
         )
     )
 
     # Invalidate tensor descriptors to ensure the kernel uses its own info
-    for tensor in [c, a, b, w]:
+    for tensor in [c, a, b, w, bias]:
         tensor.destroy_desc()
 
     # Get workspace size
@@ -140,6 +143,7 @@ def test(
                 a.data(),
                 b.data(),
                 w.data(),
+                bias.data(),
                 None, # Stream is NULL for CPU
             )
         )
@@ -155,7 +159,7 @@ def test(
     # Profiling workflow
     if PROFILE:
         # fmt: off
-        profile_operation("PyTorch", lambda: rms_norm_gemm_ref(c.torch_tensor(), a.torch_tensor(), w.torch_tensor(), b.torch_tensor(), eps), device, NUM_PRERUN, NUM_ITERATIONS)
+        profile_operation("PyTorch", lambda: rms_norm_gemm_ref(c.torch_tensor(), a.torch_tensor(), w.torch_tensor(), b.torch_tensor(), bias.torch_tensor(), eps), device, NUM_PRERUN, NUM_ITERATIONS)
         profile_operation("    lib", lib_rms_norm_gemm, device, NUM_PRERUN, NUM_ITERATIONS)
         # fmt: on
     

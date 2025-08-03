@@ -525,6 +525,7 @@ def rms_norm_gemm(lib):
         infiniopTensorDescriptor_t,
         infiniopTensorDescriptor_t,
         infiniopTensorDescriptor_t,
+        infiniopTensorDescriptor_t,
         c_float,
     ]
     lib.infiniopCreateRMSNormGemmDescriptor.restype = c_int32
@@ -539,6 +540,7 @@ def rms_norm_gemm(lib):
         infiniopOperatorDescriptor_t,
         c_void_p,
         c_size_t,
+        c_void_p,
         c_void_p,
         c_void_p,
         c_void_p,
